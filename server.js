@@ -1,25 +1,32 @@
 const { WebSocketServer } = require('ws');
+const url = require('url');
 
+// Create WebSocket server
 const wss = new WebSocketServer({ port: 8080 });
 
-wss.on('connection', (socket) => {
-  console.log('New client connected');
+// Store connections by user ID
+const clients = new Map();
 
-  socket.on('message', (message) => {
-    console.log(`Received: ${message}`);
-    const data = JSON.parse(message);
+wss.on('connection', (socket, req) => {
+  // Extract user ID from query parameters
+  const queryParams = url.parse(req.url, true).query;
+  const userId = queryParams.userId;
 
-    // Broadcast data to all connected clients
-    wss.clients.forEach((client) => {
-      if (client.readyState === client.OPEN) {
-        client.send(JSON.stringify(data));
-      }
-    });
-  });
+  if (userId) {
+    // Store the connection with the user ID
+    clients.set(userId, socket);
+    console.log(`User ${userId} connected`);
+  } else {
+    console.error('User ID missing, closing connection');
+    socket.close();
+  }
 
   socket.on('close', () => {
-    console.log('Client disconnected');
+    console.log(`User ${userId} disconnected`);
+    clients.delete(userId); // Remove the connection on disconnect
+  });
+
+  socket.on('message', (message) => {
+    console.log(`Message from user ${userId}: ${message}`);
   });
 });
-
-console.log('WebSocket server running on port 8080');
