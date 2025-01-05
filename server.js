@@ -1,14 +1,20 @@
-const WebSocket = require('ws');
-const PORT = process.env.PORT || 5000;
+const { WebSocketServer } = require('ws');
 
-const server = new WebSocket.Server({ port: PORT });
+const wss = new WebSocketServer({ port: 8080 });
 
-server.on('connection', (socket) => {
-  console.log('Client connected');
+wss.on('connection', (socket) => {
+  console.log('New client connected');
 
   socket.on('message', (message) => {
     console.log(`Received: ${message}`);
-    socket.send(`Echo: ${message}`);
+    const data = JSON.parse(message);
+
+    // Broadcast data to all connected clients
+    wss.clients.forEach((client) => {
+      if (client.readyState === client.OPEN) {
+        client.send(JSON.stringify(data));
+      }
+    });
   });
 
   socket.on('close', () => {
@@ -16,4 +22,4 @@ server.on('connection', (socket) => {
   });
 });
 
-console.log(`WebSocket server running on port ${PORT}`);
+console.log('WebSocket server running on port 8080');
