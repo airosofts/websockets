@@ -1,15 +1,14 @@
-const { WebSocketServer } = require('ws');
+const { WebSocketServer } = require('ws'); // Import WebSocketServer
 
-// Create a WebSocket server
-const wss = new WebSocketServer({ port: 8080 }); // Port 8080, or attach to an HTTP server
+// Create the WebSocket server
+const wss = new WebSocketServer({ port: 8080 }); // Port 8080 or attach to an HTTP server
 
-// Map to store WebSocket connections with associated user IDs
+// Map to associate user IDs with WebSocket connections
 const clients = new Map();
 
 wss.on('connection', (socket) => {
   console.log('New client connected');
 
-  // Listen for messages from the client
   socket.on('message', (message) => {
     try {
       const parsedMessage = JSON.parse(message);
@@ -20,11 +19,13 @@ wss.on('connection', (socket) => {
         clients.set(userId, socket);
         console.log(`User registered: ${userId}`);
       } else if (parsedMessage.type === 'data') {
-        // Handle data messages and send response to the specific user
+        // Handle data and send it to the specific user
         const { userId, payload } = parsedMessage;
+
+        // Get the target socket for this user
         const targetSocket = clients.get(userId);
 
-        if (targetSocket && targetSocket.readyState === WebSocket.OPEN) {
+        if (targetSocket && targetSocket.readyState === targetSocket.OPEN) {
           targetSocket.send(JSON.stringify({ type: 'response', payload }));
           console.log(`Response sent to user ${userId}`);
         } else {
@@ -39,7 +40,7 @@ wss.on('connection', (socket) => {
   socket.on('close', () => {
     console.log('Client disconnected');
 
-    // Remove disconnected client from the clients map
+    // Remove the client from the map
     for (const [userId, clientSocket] of clients.entries()) {
       if (clientSocket === socket) {
         clients.delete(userId);
