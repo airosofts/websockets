@@ -15,7 +15,11 @@ wss.on('connection', (socket) => {
 
       if (parsedMessage.type === 'register') {
         // Register the client with a user ID
-        const userId = "asad";
+const userId = parsedMessage.userId;
+if (!userId) {
+  console.warn('Registration message missing userId');
+  return;
+}
         clients.set(userId, socket);
         console.log(`User registered: ${userId}`);
       } else if (parsedMessage.type === 'data') {
