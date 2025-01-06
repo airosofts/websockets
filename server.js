@@ -1,43 +1,53 @@
-const WebSocket = require('ws');
+const { WebSocketServer } = require('ws');
 
-// Connect to the WebSocket server
-const socket = new WebSocket('wss://websockets-production-ffaa.up.railway.app/');
+// Create a WebSocket server
+const wss = new WebSocketServer({ port: 8080 }); // Port 8080, or attach to an HTTP server
 
-// Unique identifier for this user (e.g., user ID or session token)
-const userId = 'unique_user_id'; // Replace with dynamic user ID
+// Map to store WebSocket connections with associated user IDs
+const clients = new Map();
 
-socket.on('open', () => {
-  console.log('Connected to WebSocket server');
+wss.on('connection', (socket) => {
+  console.log('New client connected');
 
-  // Register this user ID with the server
-  socket.send(JSON.stringify({ type: 'register', userId }));
+  // Listen for messages from the client
+  socket.on('message', (message) => {
+    try {
+      const parsedMessage = JSON.parse(message);
+
+      if (parsedMessage.type === 'register') {
+        // Register the client with a user ID
+        const userId = parsedMessage.userId;
+        clients.set(userId, socket);
+        console.log(`User registered: ${userId}`);
+      } else if (parsedMessage.type === 'data') {
+        // Handle data messages and send response to the specific user
+        const { userId, payload } = parsedMessage;
+        const targetSocket = clients.get(userId);
+
+        if (targetSocket && targetSocket.readyState === WebSocket.OPEN) {
+          targetSocket.send(JSON.stringify({ type: 'response', payload }));
+          console.log(`Response sent to user ${userId}`);
+        } else {
+          console.warn(`No active connection for user: ${userId}`);
+        }
+      }
+    } catch (error) {
+      console.error('Error processing message:', error);
+    }
+  });
+
+  socket.on('close', () => {
+    console.log('Client disconnected');
+
+    // Remove disconnected client from the clients map
+    for (const [userId, clientSocket] of clients.entries()) {
+      if (clientSocket === socket) {
+        clients.delete(userId);
+        console.log(`User removed: ${userId}`);
+        break;
+      }
+    }
+  });
 });
 
-async function processQueue(urls) {
-  for (const url of urls) {
-    const extractedData = {
-      url,
-      email: `example@${url}`,
-      phone: '123-456-7890',
-      socialMedia: {
-        facebook: `https://facebook.com/${url}`,
-        twitter: `https://twitter.com/${url}`,
-      },
-    };
-
-    // Send extracted data to the WebSocket server for this user
-    if (socket.readyState === WebSocket.OPEN) {
-      try {
-        socket.send(JSON.stringify({ type: 'data', userId, payload: extractedData }));
-        console.log('Data sent:', extractedData);
-      } catch (error) {
-        console.error('Error sending data:', error);
-      }
-    } else {
-      console.warn('Socket not ready, skipping send');
-    }
-  }
-}
-
-const urls = ['example.com', 'test.com', 'demo.com'];
-processQueue(urls);
+console.log('WebSocket server running on port 8080');
